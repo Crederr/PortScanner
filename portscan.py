@@ -203,19 +203,46 @@ def parallel_host_discovery_icmp_optimized(ip_list, thread_count=300):
     
     return aktif_hostlar
 
-def optimized_port_scan(ip_adresi, thread_count=500):
+def optimized_port_scan(ip_adresi, thread_count=None):
+    # CPU sayısına göre thread sayısını otomatik ayarla
+    if thread_count is None:
+        thread_count = os.cpu_count() * 5  # Her CPU için 4 thread
+    
     def tarama(ip_adresi, port_range):
         open_ports = []
         for port in port_range:
             try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(0.05)
-                s.connect((ip_adresi, port))
-                open_ports.append(port)
-                s.close()
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.settimeout(0.065)  # Timeout süresini artırdık
+                    result = s.connect_ex((ip_adresi, port))
+                    if result == 0:
+                        open_ports.append(port)
             except:
-                pass
+                continue  # Hataları görmezden gel ve devam et
         return open_ports
+
+    # Port aralıklarını daha makul boyutlarda böl
+    port_ranges = []
+    chunk_size = 700  # Sabit chunk boyutu
+    
+    # Port aralıklarını oluştur
+    for i in range(0, 65536, chunk_size):
+        port_ranges.append(range(i, min(i + chunk_size, 65536)))
+
+    open_ports = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
+        futures = [executor.submit(tarama, ip_adresi, port_range) 
+                  for port_range in port_ranges]
+        
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                for port in future.result():
+                    print(f"{ip_adresi}:{port} OPEN")
+                    open_ports.append(port)
+            except:
+                continue  # Hataları görmezden gel ve devam et
+    
+    return sorted(open_ports)
 
     port_ranges = []
     chunk_size = 65536 // thread_count
