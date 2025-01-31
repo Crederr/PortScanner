@@ -15,7 +15,7 @@ Bu program, ağ üzerinde host keşfi ve port taraması yapabilen kapsamlı bir 
 ### Kütüphaneler ve Versiyonları
 ```
 python >= 3.8
-scapy == 2.5.0
+scapy == 2.6.1
 ipaddress == 1.0.23
 ```
 
